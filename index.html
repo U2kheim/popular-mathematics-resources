@@ -32,7 +32,9 @@
   </table>
 
 <script>
-const csvPath = 'data/resources.csv';
+// === CHANGED: use the raw.githubusercontent URL so Pages can load the CSV ===
+const csvPath = 'https://raw.githubusercontent.com/U2kheim/popular-mathematics-resources/main/data/resources.csv';
+
 let allRows = [], headers = [];
 
 function renderTable(rows) {
