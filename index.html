@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Popular Science Resources</title>
+  <title>IMPACT Popular Mathematics Resource Library</title>
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 20px; }
     .controls { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -26,8 +26,8 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-  <h1>Popular Science Resources</h1>
-  <p class="small">Edit <code>data/resources.csv</code> to update the table. Filters update automatically for each column.</p>
+  <h1>IMPACT Popular Mathematics Resource Library</h1>
+  <p class="small">Edit <code>data/resources.csv</code> in the repository to update the table. Filters are generated automatically for each column.</p>
 
   <div class="controls" id="controls">
     <input id="search" type="search" placeholder="Search (title, description, topic...)" aria-label="Search">
@@ -48,8 +48,8 @@
   </table>
 
 <script>
-/* --- CONFIG: set to your raw.githubusercontent CSV URL if needed --- */
-const csvPath = 'https://raw.githubusercontent.com/U2kheim/popular-mathematics-resources/main/data/resources.csv';
+// --- CSV URL: update the slug if your repo slug differs ---
+const csvPath = 'https://raw.githubusercontent.com/U2kheim/impact-popular-mathematics-resource-library/main/data/resources.csv';
 
 let allRows = [], headers = [], filterableHeaders = [];
 let sortOrderAsc = true;
@@ -58,15 +58,11 @@ function renderTable(rows) {
   const thead = document.getElementById('thead'), tbody = document.getElementById('tbody');
   thead.innerHTML = ''; tbody.innerHTML = '';
 
-  // header row
   headers.forEach(h => {
     const th = document.createElement('th');
     th.textContent = h;
-    // clicking header sorts by that column
     th.addEventListener('click', () => {
       document.getElementById('sortBy').value = h;
-      sortOrderAsc = (document.getElementById('toggleOrder').textContent === 'Asc') ? true : false;
-      // toggle order if already sorting by same column
       const current = document.getElementById('sortBy').dataset.last;
       if (current === h) toggleOrder();
       document.getElementById('sortBy').dataset.last = h;
@@ -75,7 +71,6 @@ function renderTable(rows) {
     thead.appendChild(th);
   });
 
-  // rows
   rows.forEach(r => {
     const tr = document.createElement('tr');
     headers.forEach(h => {
@@ -100,11 +95,9 @@ function renderTable(rows) {
   document.getElementById('count').textContent = rows.length + ' result(s)';
 }
 
-// create multi-select filters for each filterable header
 function createFilters(rows) {
   const container = document.getElementById('dynamicFilters');
   container.innerHTML = '';
-  // decide which headers are filterable (exclude Description and Link)
   filterableHeaders = headers.filter(h => {
     const lower = h.toLowerCase();
     return !['description','link','url'].includes(lower);
@@ -117,7 +110,6 @@ function createFilters(rows) {
     const sel = document.createElement('select');
     sel.multiple = true;
     sel.id = 'filter-' + idx;
-    // collect unique values
     const set = new Set();
     rows.forEach(r => { const v = (r[h] || '').toString().trim(); if (v) set.add(v); });
     [...set].sort().forEach(v => {
@@ -128,7 +120,6 @@ function createFilters(rows) {
     container.appendChild(block);
   });
 
-  // Populate sort-by select
   const sortBy = document.getElementById('sortBy');
   sortBy.innerHTML = '';
   headers.forEach(h => { const o = document.createElement('option'); o.value = h; o.textContent = h; sortBy.appendChild(o); });
@@ -139,36 +130,29 @@ function createFilters(rows) {
 function getSelectedOptions(selectEl) {
   const out = [];
   if (!selectEl) return out;
-  for (let i = 0; i < selectEl.options.length; i++) {
-    if (selectEl.options[i].selected) out.push(selectEl.options[i].value);
-  }
+  for (let i = 0; i < selectEl.options.length; i++) if (selectEl.options[i].selected) out.push(selectEl.options[i].value);
   return out;
 }
 
 function applyFilters() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const hasLink = document.getElementById('hasLink').checked;
-  // gather filter selections for each filterable header
   const selections = filterableHeaders.map((h, idx) => {
     const sel = document.getElementById('filter-' + idx);
     return getSelectedOptions(sel);
   });
 
   let filtered = allRows.filter(r => {
-    // has link
     if (hasLink) {
       const linkVal = (r['Link'] || r['URL'] || '').toString().trim();
       if (!linkVal) return false;
     }
-    // column filters
     for (let i = 0; i < filterableHeaders.length; i++) {
       const sel = selections[i];
-      if (sel.length === 0) continue; // no restriction
+      if (sel.length === 0) continue;
       const val = (r[filterableHeaders[i]] || '').toString();
-      // if the cell value is empty or not in selected list -> filter out
       if (!sel.includes(val)) return false;
     }
-    // free-text search across all visible fields
     if (q) {
       const hay = headers.map(h => (r[h] || '').toString().toLowerCase()).join(' ');
       if (!hay.includes(q)) return false;
@@ -176,7 +160,6 @@ function applyFilters() {
     return true;
   });
 
-  // sorting
   const sortBy = (document.getElementById('sortBy').value || '');
   if (sortBy) {
     filtered.sort((a,b) => {
@@ -204,7 +187,6 @@ document.getElementById('toggleOrder').addEventListener('click', () => { toggleO
 document.getElementById('reset').addEventListener('click', () => {
   document.getElementById('search').value = '';
   document.getElementById('hasLink').checked = false;
-  // clear multi-selects
   filterableHeaders.forEach((_, idx) => {
     const sel = document.getElementById('filter-' + idx);
     if (!sel) return;
@@ -215,7 +197,6 @@ document.getElementById('reset').addEventListener('click', () => {
   applyFilters();
 });
 
-// load CSV
 Papa.parse(csvPath, {
   download: true,
   header: true,
