@@ -27,7 +27,7 @@
 </head>
 <body>
   <h1>IMPACT Popular Mathematics Resource Library</h1>
-  <p class="small">Edit <code>data/resources.csv</code> in the repository to update the table. Filters are generated automatically for each column.</p>
+  <p class="small">Edit <code>data/resources.csv</code> in this repository to update the table. Filters are generated automatically for each column.</p>
 
   <div class="controls" id="controls">
     <input id="search" type="search" placeholder="Search (title, description, topic...)" aria-label="Search">
@@ -48,8 +48,8 @@
   </table>
 
 <script>
-// --- CSV URL: update the slug if your repo slug differs ---
-const csvPath = 'https://raw.githubusercontent.com/U2kheim/impact-popular-mathematics-resource-library/main/data/resources.csv';
+// Use relative path so repo renames or URL changes won't break the CSV fetch
+const csvPath = 'data/resources.csv';
 
 let allRows = [], headers = [], filterableHeaders = [];
 let sortOrderAsc = true;
@@ -130,7 +130,9 @@ function createFilters(rows) {
 function getSelectedOptions(selectEl) {
   const out = [];
   if (!selectEl) return out;
-  for (let i = 0; i < selectEl.options.length; i++) if (selectEl.options[i].selected) out.push(selectEl.options[i].value);
+  for (let i = 0; i < selectEl.options.length; i++) {
+    if (selectEl.options[i].selected) out.push(selectEl.options[i].value);
+  }
   return out;
 }
 
