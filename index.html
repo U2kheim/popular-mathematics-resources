@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Popular Science Resources</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 20px; }
+    input, select { padding: 6px; margin-right: 8px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f3f3f3; }
+    .controls { margin-bottom: 10px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <h1>Popular Science Resources</h1>
+  <p>Edit <code>data/resources.csv</code> in this repo to update the list.</p>
+
+  <div class="controls">
+    <input id="search" type="search" placeholder="Search (title, description, topic...)" size="40">
+    <select id="typeFilter"><option value="">All Types</option></select>
+    <select id="topicFilter"><option value="">All Topics</option></select>
+    <button id="reset">Reset</button>
+  </div>
+
+  <div id="count"></div>
+  <table id="table" aria-live="polite">
+    <thead><tr id="thead"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+<script>
+const csvPath = 'data/resources.csv';
+let allRows = [], headers = [];
+
+function renderTable(rows) {
+  const thead = document.getElementById('thead'), tbody = document.getElementById('tbody');
+  thead.innerHTML = ''; tbody.innerHTML = '';
+  headers.forEach(h => { const th = document.createElement('th'); th.textContent = h; thead.appendChild(th); });
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    headers.forEach(h => {
+      const td = document.createElement('td'); let v = r[h] ?? '';
+      const lower = h.toLowerCase();
+      if ((lower.includes('link') || lower.includes('url')) && v) {
+        const a = document.createElement('a'); a.href = v; a.textContent = v; a.target = '_blank'; a.rel = 'noopener noreferrer'; td.appendChild(a);
+      } else td.textContent = v;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  document.getElementById('count').textContent = rows.length + ' result(s)';
+}
+
+function populateFilters(rows) {
+  const typeSet = new Set(), topicSet = new Set();
+  rows.forEach(r => { if (r['Type']) typeSet.add(r['Type']); if (r['Topic']) topicSet.add(r['Topic']); });
+  const typeFilter = document.getElementById('typeFilter'), topicFilter = document.getElementById('topicFilter');
+  [...typeSet].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; typeFilter.appendChild(o); });
+  [...topicSet].sort().forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; topicFilter.appendChild(o); });
+}
+
+function applyFilters() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const type = document.getElementById('typeFilter').value;
+  const topic = document.getElementById('topicFilter').value;
+  const filtered = allRows.filter(r => {
+    if (type && (r['Type'] || '') !== type) return false;
+    if (topic && (r['Topic'] || '') !== topic) return false;
+    if (q) { const hay = headers.map(h => (r[h] || '').toString().toLowerCase()).join(' '); if (!hay.includes(q)) return false; }
+    return true;
+  });
+  renderTable(filtered);
+}
+
+document.getElementById('search').addEventListener('input', applyFilters);
+document.getElementById('typeFilter').addEventListener('change', applyFilters);
+document.getElementById('topicFilter').addEventListener('change', applyFilters);
+document.getElementById('reset').addEventListener('click', () => {
+  document.getElementById('search').value = ''; document.getElementById('typeFilter').value = ''; document.getElementById('topicFilter').value = ''; renderTable(allRows);
+});
+
+Papa.parse(csvPath, {
+  download: true, header: true, skipEmptyLines: true,
+  complete: function(results) { headers = results.meta.fields || []; allRows = results.data || []; populateFilters(allRows); renderTable(allRows); },
+  error: function(err) { document.getElementById('count').textContent = 'Error loading CSV: ' + (err.message || err); }
+});
+</script>
+</body>
+</html>
