@@ -27,7 +27,7 @@
 </head>
 <body>
   <h1>IMPACT Popular Mathematics Resource Library</h1>
-  <p class="small">Edit <code>data/resources.csv</code> in this repository to update the table. Filters are generated automatically for each column.</p>
+  <p class="small">Edit <code>data/resources.csv</code> to update the table. For multi-value columns (e.g., Language, Theme), use <code>|</code> (pipe) between values: <code>English|Norsk|Svensk</code>.</p>
 
   <div class="controls" id="controls">
     <input id="search" type="search" placeholder="Search (title, description, topic...)" aria-label="Search">
@@ -48,11 +48,25 @@
   </table>
 
 <script>
-// Use relative path so repo renames or URL changes won't break the CSV fetch
+// Path to CSV in repo
 const csvPath = 'data/resources.csv';
+
+// Columns that may contain multiple values separated by '|'
+// Edit these strings to match your CSV header names exactly
+const multiValueColumns = ['Language','Theme','Medium']; // adjust as needed
 
 let allRows = [], headers = [], filterableHeaders = [];
 let sortOrderAsc = true;
+
+// helper: returns array of tokens for a cell (split on '|' if column is configured)
+function tokensForCell(columnName, cellValue) {
+  if (!cellValue) return [];
+  const val = cellValue.toString().trim();
+  if (multiValueColumns.includes(columnName)) {
+    return val.split('|').map(s => s.trim()).filter(s => s.length > 0);
+  }
+  return [val];
+}
 
 function renderTable(rows) {
   const thead = document.getElementById('thead'), tbody = document.getElementById('tbody');
@@ -75,7 +89,7 @@ function renderTable(rows) {
     const tr = document.createElement('tr');
     headers.forEach(h => {
       const td = document.createElement('td');
-      let v = r[h] ?? '';
+      const v = r[h] ?? '';
       const lower = h.toLowerCase();
       if ((lower.includes('link') || lower.includes('url')) && v) {
         const a = document.createElement('a');
@@ -111,8 +125,12 @@ function createFilters(rows) {
     sel.multiple = true;
     sel.id = 'filter-' + idx;
     const set = new Set();
-    rows.forEach(r => { const v = (r[h] || '').toString().trim(); if (v) set.add(v); });
-    [...set].sort().forEach(v => {
+    rows.forEach(r => {
+      const cell = r[h] || '';
+      const tokens = tokensForCell(h, cell);
+      tokens.forEach(t => { if (t) set.add(t); });
+    });
+    [...set].sort((a,b) => a.localeCompare(b, undefined, {sensitivity:'base'})).forEach(v => {
       const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
     });
     block.appendChild(label);
@@ -130,9 +148,7 @@ function createFilters(rows) {
 function getSelectedOptions(selectEl) {
   const out = [];
   if (!selectEl) return out;
-  for (let i = 0; i < selectEl.options.length; i++) {
-    if (selectEl.options[i].selected) out.push(selectEl.options[i].value);
-  }
+  for (let i = 0; i < selectEl.options.length; i++) if (selectEl.options[i].selected) out.push(selectEl.options[i].value);
   return out;
 }
 
@@ -149,12 +165,18 @@ function applyFilters() {
       const linkVal = (r['Link'] || r['URL'] || '').toString().trim();
       if (!linkVal) return false;
     }
+    // column filters
     for (let i = 0; i < filterableHeaders.length; i++) {
+      const h = filterableHeaders[i];
       const sel = selections[i];
       if (sel.length === 0) continue;
-      const val = (r[filterableHeaders[i]] || '').toString();
-      if (!sel.includes(val)) return false;
+      const cell = r[h] || '';
+      const tokens = tokensForCell(h, cell);
+      // require that at least one selected value is present among tokens
+      const matched = sel.some(s => tokens.includes(s));
+      if (!matched) return false;
     }
+    // free-text search across all columns (match anywhere, including multi-value tokens)
     if (q) {
       const hay = headers.map(h => (r[h] || '').toString().toLowerCase()).join(' ');
       if (!hay.includes(q)) return false;
@@ -162,6 +184,7 @@ function applyFilters() {
     return true;
   });
 
+  // sorting
   const sortBy = (document.getElementById('sortBy').value || '');
   if (sortBy) {
     filtered.sort((a,b) => {
@@ -199,21 +222,37 @@ document.getElementById('reset').addEventListener('click', () => {
   applyFilters();
 });
 
-Papa.parse(csvPath, {
-  download: true,
-  header: true,
-  skipEmptyLines: true,
-  complete: function(results) {
-    headers = results.meta.fields || [];
-    allRows = results.data || [];
-    createFilters(allRows);
-    renderTable(allRows);
-    applyFilters();
-  },
-  error: function(err) {
-    document.getElementById('count').textContent = 'Error loading CSV: ' + (err.message || err);
-  }
-});
+// Fetch CSV text first to detect delimiter and then parse
+fetch(csvPath)
+  .then(resp => {
+    if (!resp.ok) throw new Error('Could not fetch CSV (status ' + resp.status + ')');
+    return resp.text();
+  })
+  .then(text => {
+    const firstLine = text.split(/\r?\n/).find(l => l.trim().length > 0) || '';
+    const semicolons = (firstLine.match(/;/g) || []).length;
+    const commas = (firstLine.match(/,/g) || []).length;
+    const delimiter = semicolons > commas ? ';' : ',';
+
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      delimiter: delimiter,
+      complete: function(results) {
+        headers = results.meta.fields || [];
+        allRows = results.data || [];
+        createFilters(allRows);
+        renderTable(allRows);
+        applyFilters();
+      },
+      error: function(err) {
+        document.getElementById('count').textContent = 'Error parsing CSV: ' + (err && err.message ? err.message : err);
+      }
+    });
+  })
+  .catch(err => {
+    document.getElementById('count').textContent = 'Error loading CSV: ' + (err && err.message ? err.message : err);
+  });
 </script>
 </body>
 </html>
