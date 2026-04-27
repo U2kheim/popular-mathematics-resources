@@ -297,6 +297,7 @@
       text-decoration: none;
       font-weight: 500;
       font-size: 90%;
+      white-space: nowrap;
     }
 
     .link-btn:hover {
@@ -318,6 +319,8 @@
       font-size: 85%;
       border-radius: 3px;
       cursor: pointer;
+      display: block;
+      margin-top: 6px;
     }
 
     .expand-btn:hover {
@@ -436,8 +439,8 @@
     }
 
     @media (min-width: 801px) {
-      .link-btn {
-        display: none;
+      a.full-url {
+        margin-right: 8px;
       }
     }
   </style>
@@ -450,7 +453,7 @@
   </div>
   
   <div class="info-box">
-    <p><strong>Welcome to the IMPACT Popular Mathematics Resource Library.</strong> This library consists of more than 400 sources of mathematically oriented popular science to serve as inspiration for mathematics education and science communication in general.</p>
+    <p><strong>Welcome to the IMPACT Popular Mathematics Resource Library.</strong> This library consists of more than 400 sources of mathematically oriented popular science to serve as inspiration for your teaching and learning.</p>
     <p><strong>To cite this page, please use:</strong><br>
     Tokheim, I. (2026). IMPACT Popular Mathematics Resource Library. [Dataset]. GitHub. <a href="https://u2kheim.github.io/popular-mathematics-resources/" target="_blank" rel="noopener noreferrer">https://u2kheim.github.io/popular-mathematics-resources/</a></p>
   </div>
@@ -581,11 +584,13 @@ function tokensForCell(columnName, cellValue) {
   return [val];
 }
 
-// Helper: check if text exceeds limit
+// Helper: check if text exceeds limit for expansion
+// Title column: never expand
+// Description and other text columns: expand if > 100 characters
 function needsExpand(text, columnName) {
   if (!text) return false;
-  const limit = (columnName === 'Title') ? 100 : 40;
-  return text.toString().length > limit;
+  if (columnName === 'Title') return false;
+  return text.toString().length > 100;
 }
 
 // Create expandable cell content
