@@ -587,11 +587,11 @@ function tokensForCell(columnName, cellValue) {
 
 // Helper: check if text exceeds limit for expansion
 // Title column: never expand
-// Description and other text columns: expand if > 100 characters
+// Description and other text columns: expand if > 200 characters
 function needsExpand(text, columnName) {
   if (!text) return false;
   if (columnName === 'Title') return false;
-  return text.toString().length > 100;
+  return text.toString().length > 200;
 }
 
 // Create expandable cell content
