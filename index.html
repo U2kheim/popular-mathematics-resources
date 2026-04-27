@@ -5,32 +5,54 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>IMPACT Popular Mathematics Resource Library</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 20px; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 20px; background: #fafbfc; color: #24292e; }
+    h1 { color: #0969da; border-bottom: 3px solid #1f6feb; padding-bottom: 12px; }
+    .info-box { background: #f6f8fa; border-left: 4px solid #0969da; padding: 16px; margin: 20px 0; border-radius: 4px; line-height: 1.6; }
+    .info-box p { margin: 8px 0; }
+    .info-box code { background: #eaeef2; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
     .controls { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    input[type="search"] { padding: 6px; min-width: 260px; }
-    select, button, label { padding: 6px; }
+    input[type="search"] { padding: 6px 10px; min-width: 260px; border: 1px solid #d0d7de; border-radius: 4px; }
+    select, button, label { padding: 6px 12px; border-radius: 4px; border: 1px solid #d0d7de; background: white; cursor: pointer; }
+    button { background: #238636; color: white; border: 1px solid #238636; font-weight: 500; }
+    button:hover { background: #2ea043; }
+    select { background: white; }
     select[multiple] { min-width: 160px; max-width: 260px; height: 120px; }
     .filter-block { display:flex; flex-direction:column; font-size:90%; }
-    .small { font-size:90%; color:#444; }
-    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
-    th { background: #f3f3f3; cursor: pointer; user-select: none; }
-    a { color: #0366d6; text-decoration: none; }
+    .small { font-size:90%; color:#657d8d; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    th, td { border: 1px solid #d0d7de; padding: 12px; text-align: left; vertical-align: top; }
+    th { background: #f6f8fa; cursor: pointer; user-select: none; font-weight: 600; color: #0969da; }
+    th:hover { background: #eaeef2; }
+    a { color: #0969da; text-decoration: none; }
     a:hover { text-decoration: underline; }
-    #count { margin-top: 6px; font-weight: 600; }
+    #count { margin-top: 12px; font-weight: 600; color: #57606a; }
+    .expand-btn { background: #f6f8fa; color: #0969da; border: 1px solid #d0d7de; padding: 2px 8px; font-size: 85%; border-radius: 3px; cursor: pointer; }
+    .expand-btn:hover { background: #eaeef2; }
+    .cell-content { word-wrap: break-word; }
+    .cell-content.collapsed { max-height: 3em; overflow: hidden; }
+    footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #d0d7de; color: #657d8d; font-size: 90%; }
     @media (max-width: 800px) {
       .controls { flex-direction: column; align-items: stretch; }
       select[multiple] { height: 90px; }
+      .info-box { padding: 12px; }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
   <h1>IMPACT Popular Mathematics Resource Library</h1>
-  <p class="small">Edit <code>data/resources.csv</code> to update the table. For multi-value columns (e.g., Language, Theme), use <code>|</code> (pipe) between values: <code>English|Norsk|Svensk</code>.</p>
+  
+  <div class="info-box">
+    <p><strong>Welcome to the IMPACT Popular Mathematics Resource Library.</strong> This library consists of more than 400 sources of mathematically oriented popular science to serve as inspiration for teachers, students and others interested in learning more about the history, culture and composition of mathematics. Explore the filters to find a resource that fits your needs. Enquiries and contributions can be directed towards <strong>ivan.tokheim@hvl.no</strong></p>
+    <p><strong>To cite this page, please use:</strong><br>
+    Tokheim, I. (2026). IMPACT Popular Mathematics Resource Library. [Dataset]. GitHub. <a href="https://u2kheim.github.io/popular-mathematics-resources/" target="_blank" rel="noopener noreferrer">https://u2kheim.github.io/popular-mathematics-resources/</a></p>
+  </div>
+
+  <p class="small">Edit <code>data/resources.csv</code> to update the table. For multi-value columns (e.g., Language, Theme), use <code>|</code> (pipe) between values: <code>English|Norsk|Svensk</code></p>
 
   <div class="controls" id="controls">
     <input id="search" type="search" placeholder="Search (title, description, topic...)" aria-label="Search">
+    <button id="searchBtn" title="Apply search filter">Search</button>
     <label class="filter-block"><span class="small">Has link</span><input id="hasLink" type="checkbox"></label>
     <div class="filter-block">
       <span class="small">Sort by</span>
@@ -47,18 +69,35 @@
     <tbody id="tbody"></tbody>
   </table>
 
+  <footer>
+    <p>Copyright Ivan Tokheim © 2026</p>
+  </footer>
+
 <script>
 // Path to CSV in repo
 const csvPath = 'data/resources.csv';
 
 // Columns that may contain multiple values separated by '|'
-// Edit these strings to match your CSV header names exactly
-const multiValueColumns = ['Language','Theme','Medium','Creator/Editor','Company/Publisher']; // adjust as needed
+const multiValueColumns = ['Language','Theme','Medium','Creator/Editor','Company/Publisher'];
+
+// Columns to exclude from filters
+const excludeFromFilters = ['Title', 'Description', 'Link', 'URL', 'Math. content'];
 
 let allRows = [], headers = [], filterableHeaders = [];
 let sortOrderAsc = true;
 
-// helper: returns array of tokens for a cell (split on '|' if column is configured)
+// Parse year string to extract individual years (e.g., "2020-2025" -> [2020, 2025])
+function extractYears(yearStr) {
+  if (!yearStr) return [];
+  const str = yearStr.toString().trim();
+  const years = new Set();
+  // Match individual years
+  const yearMatches = str.match(/\d{4}/g) || [];
+  yearMatches.forEach(y => years.add(y));
+  return Array.from(years).sort();
+}
+
+// Helper: returns array of tokens for a cell
 function tokensForCell(columnName, cellValue) {
   if (!cellValue) return [];
   const val = cellValue.toString().trim();
@@ -66,6 +105,43 @@ function tokensForCell(columnName, cellValue) {
     return val.split('|').map(s => s.trim()).filter(s => s.length > 0);
   }
   return [val];
+}
+
+// Helper: check if text exceeds limit
+function needsExpand(text) {
+  return text && text.toString().length > 40;
+}
+
+// Create expandable cell content
+function createCellElement(text) {
+  const container = document.createElement('div');
+  if (!needsExpand(text)) {
+    container.textContent = text;
+    return container;
+  }
+  
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'cell-content collapsed';
+  contentDiv.textContent = text;
+  
+  const btn = document.createElement('button');
+  btn.className = 'expand-btn';
+  btn.textContent = 'See more';
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const isCollapsed = contentDiv.classList.contains('collapsed');
+    if (isCollapsed) {
+      contentDiv.classList.remove('collapsed');
+      btn.textContent = 'See less';
+    } else {
+      contentDiv.classList.add('collapsed');
+      btn.textContent = 'See more';
+    }
+  });
+  
+  container.appendChild(contentDiv);
+  container.appendChild(btn);
+  return container;
 }
 
 function renderTable(rows) {
@@ -99,7 +175,7 @@ function renderTable(rows) {
         a.rel = 'noopener noreferrer';
         td.appendChild(a);
       } else {
-        td.textContent = v;
+        td.appendChild(createCellElement(v));
       }
       tr.appendChild(td);
     });
@@ -114,25 +190,43 @@ function createFilters(rows) {
   container.innerHTML = '';
   filterableHeaders = headers.filter(h => {
     const lower = h.toLowerCase();
-    return !['description','link','url'].includes(lower);
+    return !excludeFromFilters.map(f => f.toLowerCase()).includes(lower);
   });
 
   filterableHeaders.forEach((h, idx) => {
     const block = document.createElement('div');
     block.className = 'filter-block';
-    const label = document.createElement('span'); label.className = 'small'; label.textContent = h;
+    const label = document.createElement('span');
+    label.className = 'small';
+    label.textContent = h;
     const sel = document.createElement('select');
     sel.multiple = true;
     sel.id = 'filter-' + idx;
+    
     const set = new Set();
     rows.forEach(r => {
       const cell = r[h] || '';
-      const tokens = tokensForCell(h, cell);
-      tokens.forEach(t => { if (t) set.add(t); });
+      if (h.toLowerCase() === 'year') {
+        // Extract individual years from year spans
+        const years = extractYears(cell);
+        years.forEach(y => { if (y) set.add(y); });
+      } else {
+        const tokens = tokensForCell(h, cell);
+        tokens.forEach(t => { if (t) set.add(t); });
+      }
     });
-    [...set].sort((a,b) => a.localeCompare(b, undefined, {sensitivity:'base'})).forEach(v => {
-      const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o);
+    
+    [...set].sort((a,b) => {
+      // Numeric sort for years, alphabetic for others
+      if (!isNaN(a) && !isNaN(b)) return parseInt(a) - parseInt(b);
+      return a.localeCompare(b, undefined, {sensitivity:'base'});
+    }).forEach(v => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v;
+      sel.appendChild(o);
     });
+    
     block.appendChild(label);
     block.appendChild(sel);
     container.appendChild(block);
@@ -140,7 +234,12 @@ function createFilters(rows) {
 
   const sortBy = document.getElementById('sortBy');
   sortBy.innerHTML = '';
-  headers.forEach(h => { const o = document.createElement('option'); o.value = h; o.textContent = h; sortBy.appendChild(o); });
+  headers.forEach(h => {
+    const o = document.createElement('option');
+    o.value = h;
+    o.textContent = h;
+    sortBy.appendChild(o);
+  });
   sortBy.value = headers[0] || '';
   sortBy.dataset.last = '';
 }
@@ -165,18 +264,24 @@ function applyFilters() {
       const linkVal = (r['Link'] || r['URL'] || '').toString().trim();
       if (!linkVal) return false;
     }
-    // column filters
+    // Column filters
     for (let i = 0; i < filterableHeaders.length; i++) {
       const h = filterableHeaders[i];
       const sel = selections[i];
       if (sel.length === 0) continue;
       const cell = r[h] || '';
-      const tokens = tokensForCell(h, cell);
-      // require that at least one selected value is present among tokens
+      
+      let tokens = [];
+      if (h.toLowerCase() === 'year') {
+        tokens = extractYears(cell);
+      } else {
+        tokens = tokensForCell(h, cell);
+      }
+      
       const matched = sel.some(s => tokens.includes(s));
       if (!matched) return false;
     }
-    // free-text search across all columns (match anywhere, including multi-value tokens)
+    // Free-text search across all columns
     if (q) {
       const hay = headers.map(h => (r[h] || '').toString().toLowerCase()).join(' ');
       if (!hay.includes(q)) return false;
@@ -184,7 +289,7 @@ function applyFilters() {
     return true;
   });
 
-  // sorting
+  // Sorting
   const sortBy = (document.getElementById('sortBy').value || '');
   if (sortBy) {
     filtered.sort((a,b) => {
@@ -206,6 +311,7 @@ function toggleOrder() {
 }
 
 document.getElementById('search').addEventListener('input', applyFilters);
+document.getElementById('searchBtn').addEventListener('click', applyFilters);
 document.getElementById('hasLink').addEventListener('change', applyFilters);
 document.getElementById('sortBy').addEventListener('change', applyFilters);
 document.getElementById('toggleOrder').addEventListener('click', () => { toggleOrder(); });
@@ -218,7 +324,8 @@ document.getElementById('reset').addEventListener('click', () => {
     for (let i = 0; i < sel.options.length; i++) sel.options[i].selected = false;
   });
   document.getElementById('sortBy').value = headers[0] || '';
-  sortOrderAsc = true; document.getElementById('toggleOrder').textContent = 'Asc';
+  sortOrderAsc = true;
+  document.getElementById('toggleOrder').textContent = 'Asc';
   applyFilters();
 });
 
