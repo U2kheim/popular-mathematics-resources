@@ -288,6 +288,22 @@
       text-decoration: underline;
     }
 
+    .link-btn {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--accent);
+      color: white;
+      border-radius: 3px;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 90%;
+    }
+
+    .link-btn:hover {
+      background: var(--accent-hover);
+      text-decoration: none;
+    }
+
     #count {
       margin-top: 12px;
       font-weight: 600;
@@ -407,6 +423,21 @@
       .expand-btn {
         padding: 1px 6px;
         font-size: 75%;
+      }
+
+      a.full-url {
+        display: none;
+      }
+
+      .link-btn {
+        padding: 6px 16px;
+        font-size: 85%;
+      }
+    }
+
+    @media (min-width: 801px) {
+      .link-btn {
+        display: none;
       }
     }
   </style>
@@ -551,14 +582,16 @@ function tokensForCell(columnName, cellValue) {
 }
 
 // Helper: check if text exceeds limit
-function needsExpand(text) {
-  return text && text.toString().length > 40;
+function needsExpand(text, columnName) {
+  if (!text) return false;
+  const limit = (columnName === 'Title') ? 100 : 40;
+  return text.toString().length > limit;
 }
 
 // Create expandable cell content
-function createCellElement(text) {
+function createCellElement(text, columnName) {
   const container = document.createElement('div');
-  if (!needsExpand(text)) {
+  if (!needsExpand(text, columnName)) {
     container.textContent = text;
     return container;
   }
@@ -606,7 +639,7 @@ function downloadCSV() {
     const cells = [];
     row.querySelectorAll('td').forEach((td, idx) => {
       if (visibleColumns.has(headers[idx])) {
-        const text = td.textContent.trim().replace(/See (more|less)/g, '');
+        const text = td.textContent.trim().replace(/See (more|less)/g, '').replace(/\[LINK\]/g, '');
         cells.push(`"${text.replace(/"/g, '""')}"`);
       }
     });
@@ -662,14 +695,24 @@ function renderTable(rows) {
       const v = r[h] ?? '';
       const lower = h.toLowerCase();
       if ((lower.includes('link') || lower.includes('url')) && v) {
+        // Show full URL on desktop, [LINK] button on mobile
         const a = document.createElement('a');
         a.href = v;
         a.textContent = v;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
+        a.className = 'full-url';
         td.appendChild(a);
+
+        const linkBtn = document.createElement('a');
+        linkBtn.href = v;
+        linkBtn.textContent = 'LINK';
+        linkBtn.target = '_blank';
+        linkBtn.rel = 'noopener noreferrer';
+        linkBtn.className = 'link-btn';
+        td.appendChild(linkBtn);
       } else {
-        td.appendChild(createCellElement(v));
+        td.appendChild(createCellElement(v, h));
       }
       tr.appendChild(td);
     });
